@@ -1,0 +1,446 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ServerlessDeploymentBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "ServerlessDeploymentBucket"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DemoLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/docker-selenium-lambda-prod-demo"
+      }
+    },
+    "IamRoleLambdaExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  "docker-selenium-lambda",
+                  "prod",
+                  "lambda"
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup",
+                    "logs:TagResource"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/docker-selenium-lambda-prod*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/docker-selenium-lambda-prod*:*:*"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              "docker-selenium-lambda",
+              "prod",
+              {
+                "Ref": "AWS::Region"
+              },
+              "lambdaRole"
+            ]
+          ]
+        }
+      }
+    },
+    "EnterpriseLogAccessIamRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "arn:aws:iam::802587217904:root"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "sts:ExternalId": "ServerlessEnterprise-72e76988-536c-4ca7-9f82-6321e03aae6f"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "LogFilterAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:FilterLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "DemoLogGroup",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DemoLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ImageUri": "322986089856.dkr.ecr.us-west-2.amazonaws.com/serverless-docker-selenium-lambda-prod@sha256:0116220fbcd1b489bb8cc36aeadd2ee206b103ae201538bfdb5722f13759c0bf"
+        },
+        "PackageType": "Image",
+        "FunctionName": "docker-selenium-lambda-prod-demo",
+        "MemorySize": 4096,
+        "Timeout": 90,
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "DemoLogGroup"
+      ]
+    },
+    "DemoLambdaVersionziZbgziYrwAM3Vxhtso8ZqybvaJb7rKXhmF05mlARQ": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "DemoLambdaFunction"
+        },
+        "CodeSha256": "0116220fbcd1b489bb8cc36aeadd2ee206b103ae201538bfdb5722f13759c0bf"
+      }
+    },
+    "Dockerseleniumlambdaproddemorule1EventBridgeRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "tuesday-eight-oclock",
+        "ScheduleExpression": "cron(59 3 ? * WED *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DemoLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "tuesday-eight-oclock-target",
+            "Input": "{\"username\":\"czlzred@gmail.com\",\"password\":\"XPC@hug_cfz9amk@qdf\",\"time_index\":\"14\",\"partner_first_name\":\"Will\",\"partner_last_name\":\"Snedegar\",\"is_guest\":true}"
+          }
+        ]
+      }
+    },
+    "DemoEventBridgeLambdaPermission1": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DemoLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            ":",
+            [
+              "arn",
+              {
+                "Ref": "AWS::Partition"
+              },
+              "events",
+              {
+                "Ref": "AWS::Region"
+              },
+              {
+                "Ref": "AWS::AccountId"
+              },
+              {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "rule",
+                    "tuesday-eight-oclock"
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Dockerseleniumlambdaproddemorule2EventBridgeRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "wednesday-nine-thirty",
+        "ScheduleExpression": "cron(29 5 ? * THU *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DemoLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "wednesday-nine-thirty-target",
+            "Input": "{\"username\":\"czlzred@gmail.com\",\"password\":\"XPC@hug_cfz9amk@qdf\",\"time_index\":\"15\",\"reservation_name\":\"Martin Tak\",\"partner_first_name\":\"Will\",\"partner_last_name\":\"Snedegar\",\"is_guest\":true}"
+          }
+        ]
+      }
+    },
+    "DemoEventBridgeLambdaPermission2": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DemoLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            ":",
+            [
+              "arn",
+              {
+                "Ref": "AWS::Partition"
+              },
+              "events",
+              {
+                "Ref": "AWS::Region"
+              },
+              {
+                "Ref": "AWS::AccountId"
+              },
+              {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "rule",
+                    "wednesday-nine-thirty"
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Dockerseleniumlambdaproddemorule3EventBridgeRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "thurs-nine-thirty",
+        "ScheduleExpression": "cron(29 5 ? * FRI *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DemoLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "thurs-nine-thirty-target",
+            "Input": "{\"username\":\"czlzred@gmail.com\",\"password\":\"XPC@hug_cfz9amk@qdf\",\"time_index\":\"15\",\"reservation_name\":\"Martin Tak\",\"partner_first_name\":\"Will\",\"partner_last_name\":\"Snedegar\",\"is_guest\":true}"
+          }
+        ]
+      }
+    },
+    "DemoEventBridgeLambdaPermission3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DemoLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            ":",
+            [
+              "arn",
+              {
+                "Ref": "AWS::Partition"
+              },
+              "events",
+              {
+                "Ref": "AWS::Region"
+              },
+              {
+                "Ref": "AWS::AccountId"
+              },
+              {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "rule",
+                    "thurs-nine-thirty"
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      },
+      "Export": {
+        "Name": "sls-docker-selenium-lambda-prod-ServerlessDeploymentBucketName"
+      }
+    },
+    "EnterpriseLogAccessIamRole": {
+      "Value": {
+        "Fn::GetAtt": [
+          "EnterpriseLogAccessIamRole",
+          "Arn"
+        ]
+      },
+      "Export": {
+        "Name": "sls-docker-selenium-lambda-prod-EnterpriseLogAccessIamRole"
+      }
+    },
+    "DemoLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "DemoLambdaVersionziZbgziYrwAM3Vxhtso8ZqybvaJb7rKXhmF05mlARQ"
+      },
+      "Export": {
+        "Name": "sls-docker-selenium-lambda-prod-DemoLambdaFunctionQualifiedArn"
+      }
+    }
+  }
+}

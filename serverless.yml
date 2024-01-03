@@ -1,0 +1,58 @@
+org: willsned
+app: docker-selenium-lambda
+service: docker-selenium-lambda
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'prod'}
+  region: ${env:AWS_REGION, 'us-west-2'}
+  ecr:
+    images:
+      img:
+        path: ./
+        platform: linux/amd64
+
+functions:
+  demo:
+    timeout: 90
+    # If you experience any errors such as Chrome crashing or not being available you might need to increase the storage available to your Lambda Function. See #102
+    memorySize: 4096
+    image: 
+      name: img
+    events:
+      - eventBridge:
+          name: tuesday-eight-oclock
+          handler: main.handler
+          schedule: cron(59 3 ? * WED *)
+          input:
+            username: "czlzred@gmail.com"
+            password: "XPC@hug_cfz9amk@qdf"
+            time_index: "14"
+            partner_first_name: "Will"
+            partner_last_name: "Snedegar"
+            is_guest: true
+      - eventBridge:
+          name: wednesday-nine-thirty
+          handler: main.handler
+          schedule: cron(29 5 ? * THU *)
+          input:
+            username: "czlzred@gmail.com"
+            password: "XPC@hug_cfz9amk@qdf"
+            time_index: "15"
+            reservation_name: "Martin Tak"
+            partner_first_name: "Will"
+            partner_last_name: "Snedegar"
+            is_guest: true
+      - eventBridge:
+          name: thurs-nine-thirty
+          handler: main.handler
+          schedule: cron(29 5 ? * FRI *)
+          input:
+            username: "czlzred@gmail.com"
+            password: "XPC@hug_cfz9amk@qdf"
+            time_index: "15"
+            reservation_name: "Martin Tak"
+            partner_first_name: "Will"
+            partner_last_name: "Snedegar"
+            is_guest: true
+
